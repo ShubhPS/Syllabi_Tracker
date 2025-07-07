@@ -1,0 +1,6 @@
+{
+  "name": "Syllabus to Roadmap Generator",
+  "description": "An intelligent academic assistant that transforms college course syllabus PDFs into comprehensive learning roadmaps with curated YouTube videos and website resources.",
+  "requestFramePermissions": [],
+  "prompt": ""
+}
