@@ -62,7 +62,17 @@ const App: React.FC = () => {
       </main>
       
       <footer className="text-center py-8 border-t border-gray-200/80 mt-16">
-        <p className="text-sm text-gray-500">Powered by the Gemini API. Created with React & Tailwind CSS.</p>
+        <div className="flex items-center justify-center space-x-2">
+          <p className="text-sm text-gray-500">Project By:</p>
+          <a 
+            href="https://github.com/ShubhPS" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors duration-200 hover:underline"
+          >
+            Shubh Pratap Singh
+          </a>
+        </div>
       </footer>
     </div>
   );
