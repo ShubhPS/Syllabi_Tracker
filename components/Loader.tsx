@@ -1,5 +1,4 @@
 
-import React from 'react';
 import { SparklesIcon } from './icons';
 
 const Loader = ({ message }: { message: string }) => {

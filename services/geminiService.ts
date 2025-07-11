@@ -1,11 +1,11 @@
 import { GoogleGenAI } from "@google/genai";
 import { Roadmap } from '../types';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
+if (!process.env.GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY environment variable not set");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const getTypeDefinition = () => `
   interface Resource {
@@ -97,7 +97,7 @@ zz
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash-preview-04-17",
+      model: "gemini-2.5-pro",
       contents: [promptPart, filePart],
       config: {
         responseMimeType: "application/json",
@@ -105,6 +105,9 @@ zz
       },
     });
     
+    if (!response.text) {
+      throw new Error("No text response received from Gemini API.");
+    }
     let jsonStr = response.text.trim();
     const fenceRegex = /^```(\w*)?\s*\n?(.*?)\n?\s*```$/s;
     const match = jsonStr.match(fenceRegex);
