@@ -37,19 +37,19 @@ Try the live application: **[Syllabi_Tracker Demo]((https://syllabi-tracker.verc
 ### 📸 How It Works
 
 1. **Upload Your Syllabus**
-   ![Upload Interface](services/Screenshot (313).png)
+   ![Upload Interface](services/Screenshot(313).png)
    *Simply drag and drop or select your PDF syllabus file*
 
 2. **AI-Generated Roadmap**
-   ![Generated Roadmap]((services/Screenshot (314).png))
+   ![Generated Roadmap]((services/Screenshot(314).png))
    *View your structured learning path with expandable modules*
 
 3. **Curated Resources**
-   ![Resource Cards](services/Screenshot (315).png)
+   ![Resource Cards](services/Screenshot(315).png)
    *Access personalized study materials for each topic*
 
 4. **Progress Tracking**
-   ![Progress Tracking](services/Screenshot (316).png)
+   ![Progress Tracking](services/Screenshot(316).png)
    *Monitor your learning journey with interactive checkboxes*
 
 
