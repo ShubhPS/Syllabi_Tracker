@@ -41,7 +41,7 @@ Try the live application: **[Syllabi_Tracker Demo]((https://syllabi-tracker.verc
    *Simply drag and drop or select your PDF syllabus file*
 
 2. **AI-Generated Roadmap**
-   ![Generated Roadmap]((services/Screenshot(314).png))
+   ![Generated Roadmap](services/Screenshot(314).png)
    *View your structured learning path with expandable modules*
 
 3. **Curated Resources**
