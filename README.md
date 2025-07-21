@@ -27,7 +27,7 @@ Built using the powerful Gemini API, the app delivers precise, context-aware gui
 
 ## 🛠️ Technologies
 
-- **Frontend**: Next.js / React  
+- **Frontend**: React  
 - **Backend**: Node.js + Gemini API integration via OpenAI-compatible SDK :contentReference[oaicite:1]{index=1}  
 - **State**: Local component state or optional backend persistence  
 - **PDF Processing**: Client‑side PDF upload parsing flow
