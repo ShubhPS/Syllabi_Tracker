@@ -49,9 +49,12 @@ Try the live application: **[Syllabi_Tracker Demo]((https://syllabi-tracker.verc
    *Access personalized study materials for each topic*
 
 4. **Progress Tracking**
-   ![Progress Tracking](services/Screenshot(316).png)
+   ![Progress Tracking](services/Screenshot(317).png)
    *Monitor your learning journey with interactive checkboxes*
 
+5. **Week wise study Plan**
+   ![Progress Tracking](services/Screenshot(316).png)
+   *Study plan drafted from syllabus*
 
 ---
 
