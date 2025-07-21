@@ -2,7 +2,7 @@
 
 Convert any PDF syllabus into an interactive, AI-generated learning roadmap with curated resources like links and YouTube videos — customized for your course and study style.
 
-[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)]((https://syllabi-tracker.vercel.app/))
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://syllabi-tracker.vercel.app/)
 
 
 ---
