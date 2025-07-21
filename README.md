@@ -32,7 +32,7 @@ Built using the powerful Gemini API, the app delivers precise, context-aware gui
 ## 🎬 Demo & Screenshots
 
 ### 🌐 Live Demo
-Try the live application: **[Syllabi_Tracker Demo](https://your-hosted-link.vercel.app)**
+Try the live application: **[Syllabi_Tracker Demo]([https://your-hosted-link.vercel.app](https://syllabi-tracker.vercel.app/))**
 
 ### 📸 How It Works
 
