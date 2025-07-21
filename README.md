@@ -37,26 +37,21 @@ Try the live application: **[Syllabi_Tracker Demo]([https://your-hosted-link.ver
 ### 📸 How It Works
 
 1. **Upload Your Syllabus**
-   ![Upload Interface](<img width="1920" height="1080" alt="Screenshot (313)" src="https://github.com/user-attachments/assets/9ba5a2a4-73ad-4d95-acaa-f570c8f36e10" />
-)
+   ![Upload Interface](services/Screenshot (313).png)
    *Simply drag and drop or select your PDF syllabus file*
 
 2. **AI-Generated Roadmap**
-   ![Generated Roadmap](<img width="1920" height="1080" alt="Screenshot (314)" src="https://github.com/user-attachments/assets/d56d7ac1-b10f-468b-9464-cff9d64219e2" />
-)
+   ![Generated Roadmap](services/Screenshot (314).png)
    *View your structured learning path with expandable modules*
 
 3. **Curated Resources**
-   ![Resource Cards](<img width="1920" height="1080" alt="Screenshot (315)" src="https://github.com/user-attachments/assets/78450752-8dee-420d-8a7d-938cb1279026" />
-)
+   ![Resource Cards](services/Screenshot (315).png)
    *Access personalized study materials for each topic*
 
 4. **Progress Tracking**
-   ![Progress Tracking](<img width="1920" height="1080" alt="Screenshot (316)" src="https://github.com/user-attachments/assets/404c9e16-100a-479b-b9a3-4765fcc435b9" />
-)
+   ![Progress Tracking](services/Screenshot (316).png)
    *Monitor your learning journey with interactive checkboxes*
 
-> **Note**: Replace the screenshot paths above with your actual demo images stored in a `screenshots/` folder in your repository.
 
 ---
 
