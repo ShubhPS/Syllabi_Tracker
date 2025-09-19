@@ -38,12 +38,21 @@
     
 
     <!--
-      IMPORTANT: Set your backend API base URL here.
-      For local development, use: 'http://localhost:5179'
-      For production, update to your deployed backend URL, e.g.:
-      <script>window.API_BASE = 'https://your-backend-url.com';</script>
+      IMPORTANT: API configuration for different environments.
+      For Vercel: APIs are served from the same domain at /api/*
+      For local development: Backend runs on port 5179
     -->
-    <script>window.API_BASE = 'http://localhost:5179';</script>
+    <script>
+      // Auto-detect environment and set API base URL
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // Local development - use separate backend port
+        window.API_BASE = 'http://localhost:5179';
+      } else {
+        // Production (Vercel) - use same domain for API
+        window.API_BASE = window.location.origin;
+      }
+      console.log('API_BASE set to:', window.API_BASE);
+    </script>
 
     <!-- React UMD -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
