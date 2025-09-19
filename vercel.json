@@ -40,7 +40,6 @@
     }
   ],
   "env": {
-    "ENVIRONMENT": "production",
-    "GEMINI_API_KEY": "AIzaSyAjxnIZnd09V9YyL0EUr0aJfnbRj61ARTI"
+    "ENVIRONMENT": "production"
   }
 }
