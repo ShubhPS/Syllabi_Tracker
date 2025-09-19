@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "start": "npm run setup:server && npx concurrently -k \"npm:serve\" \"npm:server\"",
+    "build": "echo 'Static files ready'",
     "setup:server": "npm install --prefix server",
     "serve": "npx serve -l 5173 .",
     "server": "node server/index.js"
