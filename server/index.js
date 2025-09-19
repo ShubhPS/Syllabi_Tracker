@@ -16,8 +16,13 @@ try {
     console.log('Firebase service account loaded from environment variable');
   } else {
     // Fallback to JSON file (for local development)
-    serviceAccount = JSON.parse(readFileSync('../syllabus-ai-4d341-firebase-adminsdk-fbsvc-e21a21a5f5.json', 'utf8'));
-    console.log('Firebase service account loaded from JSON file');
+    try {
+      serviceAccount = JSON.parse(readFileSync('./syllabus-ai-4d341-firebase-adminsdk-fbsvc-e21a21a5f5.json', 'utf8'));
+      console.log('Firebase service account loaded from JSON file (current directory)');
+    } catch {
+      serviceAccount = JSON.parse(readFileSync('../syllabus-ai-4d341-firebase-adminsdk-fbsvc-e21a21a5f5.json', 'utf8'));
+      console.log('Firebase service account loaded from JSON file (parent directory)');
+    }
   }
 } catch (error) {
   console.warn('Firebase service account not found, Firebase features will be disabled');
