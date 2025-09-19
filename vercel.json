@@ -41,7 +41,6 @@
   ],
   "env": {
     "ENVIRONMENT": "production",
-    "GEMINI_API_KEY": "@gemini_api_key",
-    "FIREBASE_SERVICE_ACCOUNT": "@firebase_service_account"
+    "GEMINI_API_KEY": "AIzaSyAjxnIZnd09V9YyL0EUr0aJfnbRj61ARTI"
   }
 }
