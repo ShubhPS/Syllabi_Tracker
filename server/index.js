@@ -49,8 +49,35 @@ const PORT = process.env.PORT || 5179;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
 const app = express();
-app.use(cors());
+
+// Configure CORS for both local development and Vercel deployment
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    // Allow Vercel domains
+    if (origin.includes('vercel.app') || origin.includes('vercel.com')) {
+      return callback(null, true);
+    }
+    
+    // For production, you might want to be more specific
+    // For now, allow all origins (you can restrict this later)
+    callback(null, true);
+  },
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '25mb' }));
+
+// Handle preflight requests for all routes
+app.options('*', cors(corsOptions));
 
 // Secure Gemini proxy endpoint
 app.post('/api/generate', async (req, res) => {
