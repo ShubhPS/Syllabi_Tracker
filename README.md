@@ -1,20 +1,26 @@
+# Syllabus to Roadmap Generator (Pure JS)
 
-# Syllabi_Tracker
-=======
+## Run
 
-## Run and deploy your AI Studio app
+1. Backend
+   - Create `server/.env`:
+     - `PORT=5179`
+     - `GEMINI_API_KEY=YOUR_KEY`
+   - Start everything: `npm start`
+   - Health check: http://localhost:5179/api/health
 
-This contains everything you need to run your app locally.
+2. Frontend
+   - Opens at http://localhost:5173
+   - `index.html` points to backend via `window.API_BASE`.
 
-## Run Locally
+## Project Layout
+- `app.jsx` — frontend UI (React via CDN + Babel)
+- `services/geminiService.mjs` — calls backend `/api/generate`
+- `server/` — Express + SQLite + Gemini proxy
+- `index.html` — app shell and config
 
-**Prerequisites:**  Node.js
-
-
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Notes
+- Do not put API keys in the frontend.
+- Keep `server/.env` out of version control.
 
 
