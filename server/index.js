@@ -7,12 +7,20 @@ import { GoogleGenAI } from '@google/genai';
 import admin from 'firebase-admin';
 import { readFileSync } from 'fs';
 
-// Load Firebase service account from JSON file
+// Load Firebase service account from environment or JSON file
 let serviceAccount;
 try {
-  serviceAccount = JSON.parse(readFileSync('../syllabus-ai-4d341-firebase-adminsdk-fbsvc-e21a21a5f5.json', 'utf8'));
+  // First try to load from environment variable (for production)
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    console.log('Firebase service account loaded from environment variable');
+  } else {
+    // Fallback to JSON file (for local development)
+    serviceAccount = JSON.parse(readFileSync('../syllabus-ai-4d341-firebase-adminsdk-fbsvc-e21a21a5f5.json', 'utf8'));
+    console.log('Firebase service account loaded from JSON file');
+  }
 } catch (error) {
-  console.warn('Firebase service account file not found, Firebase features will be disabled');
+  console.warn('Firebase service account not found, Firebase features will be disabled');
 }
 
 // Initialize Firebase Admin if service account is available
