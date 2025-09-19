@@ -5,10 +5,13 @@
   "type": "module",
   "scripts": {
     "start": "npm run setup:server && npx concurrently -k \"npm:serve\" \"npm:server\"",
+    "start:production": "npm run setup:server && ENVIRONMENT=production node server/production.js",
+    "start:prod": "npm run setup:server && node server/production.js",
     "build": "echo 'Static files ready'",
     "setup:server": "npm install --prefix server",
     "serve": "npx serve -l 5173 .",
-    "server": "node server/index.js"
+    "server": "node server/index.js",
+    "server:prod": "node server/production.js"
   },
   "dependencies": {
     "firebase": "^12.3.0",
