@@ -1,285 +1,1059 @@
 const { useState, useCallback, useEffect, useReducer } = React;
+const { auth, db } = window;
+
+// Simple fallback auth for testing if Firebase fails
+const mockAuth = {
+  currentUser: null,
+  signInWithEmailAndPassword: (email, password) => {
+    return Promise.resolve({ user: { uid: 'mock-user', email } });
+  },
+  createUserWithEmailAndPassword: (email, password) => {
+    return Promise.resolve({ user: { uid: 'mock-user', email } });
+  },
+  signOut: () => {
+    return Promise.resolve();
+  },
+  onAuthStateChanged: (callback) => {
+    // Mock implementation - just call callback with null initially
+    setTimeout(() => callback(null), 100);
+    return () => {}; // unsubscribe function
+  }
+};
+
+// Use Firebase auth if available, otherwise use mock
+const authService = (typeof auth !== 'undefined' && auth) ? auth : mockAuth;
 
 function Loader({ message }) {
   return (
-    <div className="flex flex-col items-center justify-center text-center p-8 bg-white/50 rounded-lg shadow-md">
-      <svg className="w-12 h-12 text-blue-500 animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.5 3L9 7.5l-3 1.5L3 12l1.5 3L6 18l3 1.5L12 21l3-1.5 1.5-3 3-1.5 1.5-3-1.5-3L18 6l-3-1.5Z"/></svg>
-      <p className="mt-4 text-lg font-semibold text-gray-700">{message}</p>
-      <p className="text-sm text-gray-500">Please wait a moment...</p>
+    <div className="flex flex-col items-center justify-center p-8">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+      <p className="text-gray-600 font-medium">{message}</p>
     </div>
   );
 }
 
 function ErrorDisplay({ message }) {
   return (
-    <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-md shadow-md" role="alert">
-      <p className="font-bold">An Error Occurred</p>
+    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4">
+      <p className="font-medium">Error:</p>
       <p>{message}</p>
-      <p className="mt-2 text-sm">Please check your network connection or API key and try again.</p>
     </div>
   );
 }
 
 function SyllabusUploader({ onGenerate, isLoading }) {
-  const [fileName, setFileName] = useState(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-  const fileRef = React.useRef(null);
-  const onChange = (e) => {
-    const f = e.target.files?.[0];
-    if (f) { setFileName(f.name); }
-  };
-  const onDrop = (e) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f && f.type === 'application/pdf') {
-      fileRef.current.files = e.dataTransfer.files;
-      setFileName(f.name);
+  const [syllabusText, setSyllabusText] = useState('');
+  const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+
+  const handleFileUpload = async (uploadedFile) => {
+    if (!uploadedFile) return;
+
+    const fileType = uploadedFile.type;
+    const fileName = uploadedFile.name.toLowerCase();
+
+    if (fileType === 'text/plain' || fileName.endsWith('.txt')) {
+      // Handle TXT files
+      setFile(uploadedFile);
+      const reader = new FileReader();
+      reader.onload = (e) => setSyllabusText(e.target.result);
+      reader.readAsText(uploadedFile);
+    } else if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+      // Handle PDF files - we'll send them directly to Gemini
+      setFile(uploadedFile);
+      setSyllabusText(''); // Clear text area when PDF is uploaded
+    } else {
+      alert('Please upload a valid text file (.txt) or PDF file (.pdf)');
     }
   };
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const f = fileRef.current?.files?.[0];
-    if (f) onGenerate(f);
+
+  const handleFileInputChange = (event) => {
+    const uploadedFile = event.target.files[0];
+    handleFileUpload(uploadedFile);
   };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+    const uploadedFile = e.dataTransfer.files[0];
+    handleFileUpload(uploadedFile);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setDragOver(false);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Check if we have either text content or a file
+    if (!syllabusText.trim() && !file) {
+      alert('Please enter syllabus content or upload a file');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf'))) {
+        // Handle PDF file - send directly to Gemini
+        await handlePDFGeneration(file);
+      } else {
+        // Handle text content
+        await onGenerate(syllabusText);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePDFGeneration = async (pdfFile) => {
+    try {
+      // Convert PDF to base64
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64String = reader.result.split(',')[1]; // Remove data:application/pdf;base64, prefix
+          resolve(base64String);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(pdfFile);
+      });
+
+      // Send PDF directly to Gemini via our API
+      const response = await fetch(`${window.API_BASE}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mimeType: 'application/pdf',
+          base64: base64,
+          prompt: `Extract the syllabus content from this PDF and generate a comprehensive learning roadmap. 
+                   Analyze the course structure, topics, and learning objectives to create an interactive roadmap 
+                   with modules and topics that students can track their progress through.
+                   
+                   For each topic, please provide curated resources including:
+                   1. Relevant YouTube video tutorials (prefer popular Indian educational channels like CodeWithHarry, Apna College, Chai aur Code, etc.)
+                   2. Reading materials, documentation, and tutorial links
+                   3. Practice resources and exercises when applicable
+                   
+                   Return the response in this exact JSON format:
+                   {
+                     "courseDetails": {
+                       "courseTitle": "Course Name",
+                       "description": "Course description",
+                       "duration": "Duration estimate",
+                       "difficulty": "Beginner/Intermediate/Advanced"
+                     },
+                     "modules": [
+                       {
+                         "title": "Module Title",
+                         "description": "Module description",
+                         "topics": [
+                           {
+                             "title": "Topic Title",
+                             "description": "Topic description",
+                             "completed": false,
+                             "estimatedTime": "3 Hours",
+                             "keyConcepts": "List key concepts covered in this topic",
+                             "resources": [
+                               {
+                                 "type": "video",
+                                 "title": "Video Title",
+                                 "description": "Comprehensive video covering the basics and fundamentals",
+                                 "url": "https://youtube.com/watch?v=...",
+                                 "channel": "Channel Name (e.g., CodeWithHarry, Apna College)",
+                                 "icon": "youtube"
+                               },
+                               {
+                                 "type": "reading",
+                                 "title": "Reading Material Title",
+                                 "description": "Detailed article explaining fundamental concepts",
+                                 "url": "https://example.com/article",
+                                 "source": "Source website",
+                                 "icon": "link"
+                               }
+                             ]
+                           }
+                         ]
+                       }
+                     ]
+                   }`,
+          userId: 'mock-user' // We'll use mock user for now since we have fallback auth
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to process PDF');
+      }
+
+      const data = await response.json();
+      
+      // Parse the roadmap data and call the onGenerate callback with the parsed data
+      if (data.text) {
+        const roadmapData = JSON.parse(data.text);
+        // Show success message for PDF
+        const courseName = roadmapData.courseDetails?.courseTitle || 'Course';
+        alert(`🎉 "${courseName}" roadmap created successfully from PDF! You can now track your progress.`);
+        
+        // Call the parent's onGenerate function but pass the roadmap data directly
+        onGenerate(null, roadmapData); // Pass null for text, and the roadmap data
+      }
+    } catch (error) {
+      console.error('Error processing PDF:', error);
+      alert('Failed to process PDF. Please try again or convert to text format.');
+    }
+  };
+
   return (
-    <div className="w-full max-w-lg mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
-      <form onSubmit={handleSubmit}>
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Upload Syllabus PDF</label>
-            <div
-              onDrop={onDrop}
-              onDragOver={(e)=>{e.preventDefault(); setIsDragOver(true);}}
-              onDragEnter={(e)=>{e.preventDefault(); setIsDragOver(true);}}
-              onDragLeave={(e)=>{e.preventDefault(); setIsDragOver(false);}}
-              onClick={()=>fileRef.current?.click()}
-              className={`flex justify-center w-full px-6 pt-5 pb-6 border-2 ${isDragOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'} border-dashed rounded-lg cursor-pointer transition-colors bg-gray-50 hover:bg-gray-100`}
-            >
-              <div className="space-y-1 text-center">
-                {fileName ? (
-                  <>
-                    <p className="text-sm text-gray-700 font-medium">{fileName}</p>
-                    <p className="text-xs text-gray-500">Click or drag to replace</p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-sm text-gray-600"><span className="font-semibold text-blue-600">Click to upload</span> or drag and drop</p>
-                    <p className="text-xs text-gray-500">Syllabus in PDF format</p>
-                  </>
-                )}
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="bg-white/90 backdrop-blur-sm p-8 rounded-3xl shadow-2xl border border-white/20">
+        <h3 className="text-2xl font-bold text-gray-800 mb-6 text-center">Upload Syllabus PDF</h3>
+        
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* File Upload Area */}
+          <div
+            className={`relative border-2 border-dashed rounded-2xl p-8 text-center transition-all duration-200 ${
+              dragOver 
+                ? 'border-blue-400 bg-blue-50/50' 
+                : file 
+                  ? 'border-green-400 bg-green-50/50' 
+                  : 'border-gray-300 hover:border-gray-400'
+            }`}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+          >
+            <input
+              type="file"
+              accept=".txt,.pdf,text/plain,application/pdf"
+              onChange={handleFileInputChange}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              id="file-upload"
+            />
+            
+            <div className="space-y-4">
+              {/* Upload Icon */}
+              <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
+                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
               </div>
-              <input ref={fileRef} type="file" className="sr-only" accept=".pdf" onChange={onChange}/>
+              
+              {file ? (
+                <div>
+                  <p className="text-green-600 font-medium">✓ {file.name}</p>
+                  {file.type === 'application/pdf' && (
+                    <p className="text-blue-600 text-sm">📄 PDF will be processed directly by AI</p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <p className="text-lg">
+                    <span className="text-blue-600 font-medium cursor-pointer hover:underline">Click to upload</span>
+                    <span className="text-gray-600"> or drag and drop</span>
+                  </p>
+                  <p className="text-gray-500 text-sm">Syllabus in PDF format</p>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-        <div className="mt-8">
-          <button type="submit" disabled={!fileName || isLoading} className="w-full px-6 py-3 rounded-lg text-white bg-blue-600 disabled:bg-gray-400">{isLoading ? 'Generating...' : 'Generate Learning Roadmap'}</button>
-        </div>
-      </form>
+
+          {/* Text Input Alternative */}
+          <div className="text-center text-gray-500">
+            <span>or</span>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Paste syllabus content:
+            </label>
+            <textarea
+              value={syllabusText}
+              onChange={(e) => setSyllabusText(e.target.value)}
+              placeholder="Paste your syllabus content here..."
+              rows={6}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+              disabled={file && file.type === 'application/pdf'}
+            />
+            {syllabusText && (
+              <p className="mt-2 text-sm text-gray-600">
+                Content length: {syllabusText.length} characters
+              </p>
+            )}
+            {file && file.type === 'application/pdf' && (
+              <p className="mt-2 text-sm text-gray-500">
+                Text input is disabled when a PDF is uploaded. Remove the PDF to enable text input.
+              </p>
+            )}
+          </div>
+
+          {/* Generate Button */}
+          <button
+            type="submit"
+            disabled={loading || (!syllabusText.trim() && !file)}
+            className="w-full px-8 py-4 bg-gray-600 text-white rounded-xl hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg flex items-center justify-center transition-all duration-200"
+          >
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                {file && file.type === 'application/pdf' ? 'Processing PDF...' : 'Generating Roadmap...'}
+              </>
+            ) : (
+              <>
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Generate Learning Roadmap
+              </>
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
 
 function ResourceCard({ resource }) {
-  const isYouTube = resource.type === 'YouTube' || resource.type === 'Playlist';
-  const href = resource.url && resource.url.trim() ? resource.url : (isYouTube
-    ? `https://www.youtube.com/results?search_query=${encodeURIComponent(resource.searchQuery)}`
-    : `https://www.google.com/search?q=${encodeURIComponent(resource.searchQuery)}`);
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" onClick={(e)=>e.stopPropagation()} className="block p-4 bg-white rounded-xl border border-gray-200 hover:shadow-lg hover:border-blue-400 transition-all group duration-300">
-      <div className="flex-1">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="font-semibold text-gray-800 group-hover:text-blue-600 transition-colors">{resource.title}</p>
-            {resource.channel && <p className="text-xs text-gray-500 font-medium">{resource.channel}</p>}
-          </div>
-          <div className="flex items-center gap-1 text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300 font-semibold">
-            <span>Open</span>
-          </div>
-        </div>
-        <p className="mt-1 text-sm text-gray-600">{resource.description}</p>
-      </div>
-    </a>
+    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <h4 className="font-medium text-gray-900 mb-2">{resource.title}</h4>
+      <p className="text-sm text-gray-600 mb-3">{resource.description}</p>
+      <a
+        href={resource.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
+      >
+        Access Resource
+        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+        </svg>
+      </a>
+    </div>
   );
 }
 
 function ModuleNode({ module, index, onToggle, accentColor }) {
-  const [isOpen, setIsOpen] = useState(index === 0);
+  const [isExpanded, setIsExpanded] = useState(true);
+  
+  const completedTopics = module.topics?.filter(topic => topic.completed).length || 0;
+  const totalTopics = module.topics?.length || 0;
+  const progressPercentage = totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0;
+
   return (
-    <div className="relative pl-12 pb-8">
-      <div className="absolute left-[3px] top-1 h-8 w-8 bg-white flex items-center justify-center rounded-full z-10">
-        <div className="w-8 h-8 rounded-full" style={{ backgroundColor: accentColor }} />
-      </div>
-      <div className="relative">
-        <button onClick={()=>setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-4 bg-white rounded-lg shadow-md border border-gray-200 hover:border-blue-400 hover:shadow-lg transition-all">
-          <div className="flex items-center gap-3 text-left">
-            <h3 className="text-xl font-bold text-gray-800">{`Module ${index + 1}: ${module.title}`}</h3>
+    <div className="bg-white rounded-2xl shadow-lg border border-gray-200/50 overflow-hidden">
+      {/* Module Header */}
+      <div 
+        className="p-6 cursor-pointer hover:bg-gray-50/50 transition-all duration-200"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="bg-blue-100 p-3 rounded-xl">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-bold text-gray-900 mb-1">{module.title}</h3>
+              <p className="text-gray-600 text-sm">{module.description}</p>
+            </div>
           </div>
-          <span className={`transition-transform ${isOpen ? 'rotate-180' : ''}`}>⌄</span>
-        </button>
-        <div className={`grid transition-all duration-500 ease-in-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
-          <div className="overflow-hidden">
-            <div className="p-4 md:p-6 bg-white border-l border-r border-b border-gray-200 rounded-b-lg mt-[-1px]">
-              <div className="mb-6 pl-4 border-l-4" style={{ borderColor: accentColor }}>
-                <div className="flex items-center gap-2 text-gray-700 mb-2">
-                  <h4 className="font-semibold">Learning Objectives</h4>
-                </div>
-                <ul className="list-disc list-inside space-y-1 text-gray-600">
-                  {module.learningObjectives.map((obj, i) => <li key={i}>{obj}</li>)}
-                </ul>
+          
+          <div className="flex items-center space-x-4">
+            <div className="text-right">
+              <div className="text-sm font-medium text-gray-700">
+                {completedTopics}/{totalTopics} completed
               </div>
-              <div className="space-y-4">
-                {module.topics.map((topic, topicIndex) => {
-                  const isCompleted = !!topic.completed;
-                  return (
-                    <div key={topicIndex} className={`p-4 rounded-xl border transition-all duration-300 ${isCompleted ? 'bg-green-50/70 border-green-200' : 'bg-gray-50 border-gray-200'} cursor-pointer`} onClick={()=>onToggle(index, topicIndex)} role="button" tabIndex={0} onKeyDown={(e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); onToggle(index, topicIndex);}}}>
-                      <div className="flex items-start gap-4">
-                        <input type="checkbox" checked={isCompleted} onChange={(e)=>{ e.stopPropagation(); onToggle(index, topicIndex); }} className="relative z-10 mt-1 w-5 h-5 rounded border-gray-400 accent-blue-600 cursor-pointer" onClick={(e)=>e.stopPropagation()} />
-                        <div className="flex-1">
-                          <h5 className={`font-bold text-gray-900 transition-all ${isCompleted ? 'line-through text-gray-500' : ''}`}>{topic.title}</h5>
-                          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                            <span>Est. Time: {topic.estimatedTime}</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="pl-10 mt-4">
-                        <div className="pl-4 border-l-2 border-gray-300 mb-4">
-                          <h6 className="font-semibold text-gray-700 text-sm mb-1">Key Concepts</h6>
-                          <p className="text-sm text-gray-600">{topic.keyConcepts.join(', ')}</p>
-                        </div>
-                        <div>
-                          <h6 className="font-semibold text-gray-700 text-sm mb-2">Curated Resources</h6>
-                          <div className="space-y-3">
-                            {topic.resources.map((r, i) => <ResourceCard key={i} resource={r} />)}
-                          </div>
-                        </div>
+              <div className="w-24 bg-gray-200 rounded-full h-2 mt-1">
+                <div 
+                  className="h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 transition-all duration-300"
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+            </div>
+            <svg 
+              className={`w-6 h-6 text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      {/* Module Content */}
+      {isExpanded && module.topics && (
+        <div className="border-t border-gray-100">
+          {/* Learning Objectives */}
+          <div className="p-6 bg-blue-50/50">
+            <div className="flex items-center space-x-2 mb-3">
+              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+              </div>
+              <h4 className="font-semibold text-gray-800">Learning Objectives</h4>
+            </div>
+            <ul className="space-y-2 ml-8">
+              <li className="text-gray-700 text-sm">• Understand the fundamental concepts covered in this module</li>
+              <li className="text-gray-700 text-sm">• Apply the learned concepts through practical exercises</li>
+              <li className="text-gray-700 text-sm">• Master the key skills and techniques presented</li>
+            </ul>
+          </div>
+
+          {/* Topics */}
+          <div className="p-6 space-y-4">
+            {module.topics.map((topic, topicIndex) => (
+              <div 
+                key={topicIndex}
+                className={`border rounded-xl p-4 transition-all duration-200 cursor-pointer ${
+                  topic.completed 
+                    ? 'border-green-200 bg-green-50/50' 
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/50'
+                }`}
+                onClick={() => onToggle && onToggle(index, topicIndex)}
+              >
+                <div className="flex items-start space-x-4">
+                  {/* Checkbox */}
+                  <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 ${
+                    topic.completed 
+                      ? 'bg-green-500 border-green-500' 
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}>
+                    {topic.completed && (
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                  </div>
+                  
+                  {/* Topic Content */}
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className={`font-semibold ${topic.completed ? 'text-green-800' : 'text-gray-900'}`}>
+                        {topic.title}
+                      </h4>
+                      <div className="flex items-center text-sm text-gray-500">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Est. Time: {topic.estimatedTime || '3 Hours'}
                       </div>
                     </div>
-                  );
-                })}
+                    <p className={`text-sm mb-3 ${topic.completed ? 'text-green-700' : 'text-gray-600'}`}>
+                      {topic.description}
+                    </p>
+                    
+                    {/* Key Concepts */}
+                    <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                      <h5 className="font-medium text-gray-800 mb-2">Key Concepts</h5>
+                      <p className="text-sm text-gray-600">
+                        {topic.keyConcepts || 'Core programming fundamentals, syntax understanding, practical implementation techniques'}
+                      </p>
+                    </div>
+
+                    {/* Curated Resources */}
+                    {topic.resources && topic.resources.length > 0 && (
+                      <div>
+                        <h5 className="font-medium text-gray-800 mb-3">Curated Resources</h5>
+                        <div className="space-y-3">
+                          {topic.resources.map((resource, resourceIndex) => (
+                            <a 
+                              key={resourceIndex} 
+                              href={resource.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+                            >
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                resource.type === 'video' || resource.icon === 'youtube'
+                                  ? 'bg-red-100' 
+                                  : 'bg-blue-100'
+                              }`}>
+                                {resource.type === 'video' || resource.icon === 'youtube' ? (
+                                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                  </svg>
+                                ) : (
+                                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <h6 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                  {resource.title}
+                                </h6>
+                                <p className="text-sm text-gray-600 mb-1">{resource.description}</p>
+                                <p className="text-xs text-gray-500">
+                                  {resource.channel || resource.source || 'Educational Resource'}
+                                </p>
+                              </div>
+                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                </svg>
+                              </div>
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RoadmapDisplay({ data, onToggle }) {
+  if (!data) return null;
+
+  const { courseDetails, modules } = data;
+  
+  // Calculate overall progress
+  const totalTopics = modules?.reduce((acc, module) => acc + (module.topics?.length || 0), 0) || 0;
+  const completedTopics = modules?.reduce((acc, module) => 
+    acc + (module.topics?.filter(topic => topic.completed).length || 0), 0) || 0;
+  
+  return (
+    <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 overflow-hidden">
+      {/* Course Header */}
+      <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-8 text-white">
+        <div className="flex items-start space-x-4">
+          <div className="bg-white/20 p-3 rounded-xl">
+            <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold mb-2">{courseDetails?.courseTitle}</h1>
+            <p className="text-lg opacity-90 mb-2">{courseDetails?.description}</p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              {courseDetails?.duration && (
+                <span className="bg-white/20 px-3 py-1 rounded-full">
+                  {courseDetails.duration} Lecture Hours
+                </span>
+              )}
+              {courseDetails?.difficulty && (
+                <span className="bg-white/20 px-3 py-1 rounded-full">
+                  {courseDetails.difficulty}
+                </span>
+              )}
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Progress Section */}
+      <div className="p-8 border-b border-gray-200">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold text-gray-800">Your Progress</h2>
+          <span className="text-lg font-medium text-blue-600">
+            {completedTopics} / {totalTopics} Topics Completed
+          </span>
+        </div>
+        <div className="w-full bg-gray-200 rounded-full h-3">
+          <div 
+            className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500"
+            style={{ width: `${totalTopics > 0 ? (completedTopics / totalTopics) * 100 : 0}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Learning Roadmap */}
+      <div className="p-8">
+        <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center">Your Learning Roadmap</h2>
+        
+        {modules && modules.length > 0 && (
+          <div className="space-y-6">
+            {modules.map((module, index) => (
+              <ModuleNode
+                key={index}
+                module={module}
+                index={index}
+                onToggle={onToggle}
+                accentColor="#3B82F6"
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function RoadmapDisplay({ data }) {
-  function reducer(state, action) {
-    switch(action.type){
-      case 'SET': return action.payload;
-      case 'TOGGLE': {
-        const { mi, ti } = action;
-        return {
-          ...state,
-          modules: state.modules.map((m, i)=> i!==mi ? m : ({ ...m, topics: m.topics.map((t, j)=> j!==ti ? t : ({ ...t, completed: !t.completed })) }))
-        };
+const Login = ({ onLogin }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError(null);
+    try {
+      console.log('Attempting to login with email:', email);
+      const userCredential = await authService.signInWithEmailAndPassword(email, password);
+      console.log('Login successful:', userCredential.user.email);
+      onLogin(userCredential.user);
+    } catch (error) {
+      console.error('Login error:', error);
+      let errorMessage = 'Login failed. Please try again.';
+      
+      switch (error.code) {
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email address.';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/configuration-not-found':
+          errorMessage = 'Firebase authentication is not properly configured. Please contact support.';
+          break;
+        default:
+          errorMessage = error.message || 'Login failed. Please try again.';
       }
-      default: return state;
+      
+      setError(errorMessage);
     }
-  }
-  const [state, dispatch] = useReducer(reducer, null);
-  useEffect(()=>{
-    if (data){
-      const normalized = { ...data, modules: data.modules.map(m=>({ ...m, topics: m.topics.map(t=>({ ...t, completed: !!t.completed })) })) };
-      dispatch({ type: 'SET', payload: normalized });
-    }
-  }, [data]);
-  const onToggle = (mi, ti) => dispatch({ type: 'TOGGLE', mi, ti });
-  if (!state) return null;
-  const allTopics = state.modules.flatMap(m=>m.topics);
-  const completed = allTopics.filter(t=>t.completed).length;
-  const total = allTopics.length;
-  const progress = total ? (completed/total)*100 : 0;
-  const accent = ['#3b82f6','#10b981','#ec4899','#f97316','#8b5cf6','#d946ef'];
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-12 animate-fade-in">
-      <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200/50 relative overflow-hidden">
-        <div className="relative z-10">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
-            <div className="flex-shrink-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-xl p-3 shadow-lg"></div>
-            <div>
-              <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">{state.courseDetails.courseTitle}</h1>
-              <p className="text-md text-gray-500 font-medium">{state.courseDetails.courseCode} | {state.courseDetails.credits} | {state.courseDetails.duration}</p>
-            </div>
+    <div className="w-full max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+      <h2 className="text-2xl font-bold text-center mb-8">Login</h2>
+      {error && <p className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</p>}
+      <form onSubmit={handleLogin}>
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
-          <p className="text-gray-700 text-lg">{state.courseDetails.description}</p>
-        </div>
-      </section>
-      {total>0 && (
-        <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200/50 mb-8">
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-xl font-bold text-gray-800">Your Progress</h3>
-            <span className="font-bold text-blue-600 text-lg">{completed} / {total} Topics Completed</span>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
-            <div className="bg-gradient-to-r from-green-400 to-blue-500 h-6 rounded-full transition-all duration-700 ease-out relative" style={{ width: `${progress}%` }}>
-              <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-            </div>
-          </div>
-          <div className="mt-2 text-sm text-gray-600 text-center">{progress>0 ? `${progress.toFixed(1)}% Complete` : 'Start checking off topics to track your progress!'}</div>
         </div>
-      )}
-      <section>
-        <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Your Learning Roadmap</h2>
-        <div className="relative before:absolute before:top-0 before:left-4 before:h-full before:w-1 before:bg-blue-200 before:rounded before:pointer-events-none">
-          {state.modules.map((m,i)=> (
-            <ModuleNode key={i} module={m} index={i} onToggle={onToggle} accentColor={accent[i % accent.length]} />
-          ))}
+        <div className="mt-8">
+          <button type="submit" className="w-full px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700">
+            Login
+          </button>
         </div>
-      </section>
-      <section className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200/50">
-        <div className="flex items-center gap-4 text-gray-800 mb-4"><h2 className="text-2xl font-bold">{state.studyTimeline.title}</h2></div>
-        <ul className="space-y-3 text-gray-700">
-          {state.studyTimeline.recommendations.map((rec,i)=>(
-            <li key={i} className="flex items-start gap-3"><span className="w-5 h-5 text-green-500 mt-1">✔</span><span>{rec}</span></li>
-          ))}
-        </ul>
-      </section>
+      </form>
     </div>
   );
-}
+};
 
-function App(){
-  const [isLoading, setIsLoading] = useState(false);
+const Register = ({ onRegister }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
-  const [data, setData] = useState(null);
-  const generate = useCallback(async (file)=>{
-    setIsLoading(true); setError(null); setData(null);
-    try{
-      const d = await window.generateRoadmapFromSyllabus(file);
-      setData(d);
-    }catch(e){ setError(e.message || 'Failed'); }
-    finally{ setIsLoading(false); }
-  },[]);
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    setError(null);
+    
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return;
+    }
+    
+    try {
+      console.log('Attempting to register with email:', email);
+      const userCredential = await authService.createUserWithEmailAndPassword(email, password);
+      console.log('Registration successful:', userCredential.user.email);
+      onRegister(userCredential.user);
+    } catch (error) {
+      console.error('Registration error:', error);
+      let errorMessage = 'Registration failed. Please try again.';
+      
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'An account with this email already exists.';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'Please enter a valid email address.';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password should be at least 6 characters.';
+          break;
+        case 'auth/configuration-not-found':
+          errorMessage = 'Firebase authentication is not properly configured. Please contact support.';
+          break;
+        default:
+          errorMessage = error.message || 'Registration failed. Please try again.';
+      }
+      
+      setError(errorMessage);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 font-sans text-gray-900">
-      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/80 sticky top-0 z-20">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-center">
-          <h1 className="text-2xl font-bold text-gray-800 tracking-tight">AI Learning Roadmap Generator</h1>
+    <div className="w-full max-w-md mx-auto bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+      <h2 className="text-2xl font-bold text-center mb-8">Register</h2>
+      {error && <p className="bg-red-100 text-red-700 p-3 rounded mb-4">{error}</p>}
+      <form onSubmit={handleRegister}>
+        <div className="space-y-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
         </div>
-      </header>
-      <main className="container mx-auto p-4 md:p-8">
-        <div className="max-w-3xl mx-auto text-center mb-12 animate-fade-in">
-          <h2 className="text-4xl font-extrabold text-gray-900 sm:text-5xl tracking-tight">From Syllabus to Complete Study Plan</h2>
-          <p className="mt-4 text-xl text-gray-600">Upload your course syllabus PDF. Our AI will analyze it and generate a detailed learning roadmap with curated resources to guide your studies.</p>
+        <div className="mt-8">
+          <button type="submit" className="w-full px-6 py-3 rounded-lg text-white bg-blue-600 hover:bg-blue-700">
+            Register
+          </button>
         </div>
-        {!data && <div className="animate-fade-in" style={{ animationDelay: '0.2s' }}><SyllabusUploader onGenerate={generate} isLoading={isLoading}/></div>}
-        <div className="mt-12">
-          {isLoading && <Loader message="Analyzing syllabus and building your custom roadmap..."/>}
-          {error && <ErrorDisplay message={error}/>} 
-          {data && <RoadmapDisplay data={data}/>} 
+      </form>
+    </div>
+  );
+};
+
+const Courses = ({ user }) => {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    const unsubscribe = db.collection('users').doc(user.uid).collection('courses')
+      .onSnapshot((snapshot) => {
+        const coursesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setCourses(coursesData);
+        setLoading(false);
+      });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  const handleToggle = async (courseId, moduleIndex, topicIndex) => {
+    const course = courses.find(c => c.id === courseId);
+    if (!course) return;
+
+    const updatedModules = [...course.modules];
+    const updatedTopics = [...updatedModules[moduleIndex].topics];
+    updatedTopics[topicIndex] = {
+      ...updatedTopics[topicIndex],
+      completed: !updatedTopics[topicIndex].completed
+    };
+    updatedModules[moduleIndex] = {
+      ...updatedModules[moduleIndex],
+      topics: updatedTopics
+    };
+
+    const courseRef = db.collection('users').doc(user.uid).collection('courses').doc(courseId);
+    await courseRef.update({ modules: updatedModules });
+  };
+
+  if (loading) {
+    return <p>Loading courses...</p>;
+  }
+
+  return (
+    <div className="w-full max-w-4xl mx-auto space-y-8">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Your Courses</h2>
+      {courses.length === 0 ? (
+        <p className="text-center text-gray-500">You haven't generated any roadmaps yet.</p>
+      ) : (
+        courses.map(course => (
+          <div key={course.id} className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200/50">
+            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{course.courseDetails.courseTitle}</h3>
+            <RoadmapDisplay data={course} onToggle={(mi, ti) => handleToggle(course.id, mi, ti)} />
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState('login');
+  const [roadmapData, setRoadmapData] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((user) => {
+      setUser(user);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogin = (user) => {
+    setUser(user);
+    setView('courses');
+  };
+
+  const handleRegister = (user) => {
+    setUser(user);
+    setView('courses');
+  };
+
+  const handleLogout = async () => {
+    await authService.signOut();
+    setUser(null);
+    setView('login');
+    setRoadmapData(null);
+  };
+
+  const handleGenerate = async (syllabusText, roadmapData = null) => {
+    try {
+      let data;
+      
+      if (roadmapData) {
+        // PDF was already processed, use the provided roadmap data
+        data = roadmapData;
+      } else {
+        // Process text content through the Gemini API
+        const response = await fetch(`${window.API_BASE}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mimeType: 'text/plain',
+            base64: btoa(syllabusText), // Convert text to base64
+            prompt: `Generate a comprehensive learning roadmap from this syllabus text. 
+                     Analyze the course structure, topics, and learning objectives to create an interactive roadmap 
+                     with modules and topics that students can track their progress through.
+                     
+                     For each topic, please provide curated resources including:
+                     1. Relevant YouTube video tutorials (prefer Indian educational channels like CodeWithHarry, Apna College, etc.)
+                     2. Reading materials and documentation links
+                     3. Practice resources when applicable
+                     
+                     Return the response in this exact JSON format:
+                     {
+                       "courseDetails": {
+                         "courseTitle": "Course Name",
+                         "description": "Course description", 
+                         "duration": "Duration estimate",
+                         "difficulty": "Beginner/Intermediate/Advanced"
+                       },
+                       "modules": [
+                         {
+                           "title": "Module Title",
+                           "description": "Module description",
+                           "topics": [
+                             {
+                               "title": "Topic Title",
+                               "description": "Topic description", 
+                               "completed": false,
+                               "estimatedTime": "3 Hours",
+                               "keyConcepts": "List key concepts covered in this topic",
+                               "resources": [
+                                 {
+                                   "type": "video",
+                                   "title": "Video Title",
+                                   "description": "Video description",
+                                   "url": "https://youtube.com/watch?v=...",
+                                   "channel": "Channel Name (e.g., CodeWithHarry, Apna College)",
+                                   "icon": "youtube"
+                                 },
+                                 {
+                                   "type": "reading",
+                                   "title": "Reading Material Title",
+                                   "description": "Article or documentation description",
+                                   "url": "https://example.com/article",
+                                   "source": "Source website",
+                                   "icon": "link"
+                                 }
+                               ]
+                             }
+                           ]
+                         }
+                       ]
+                     }`,
+            userId: user ? user.uid : 'mock-user'
+          })
+        });
+
+        if (!response.ok) throw new Error('Failed to generate roadmap');
+
+        const result = await response.json();
+        data = JSON.parse(result.text);
+      }
+      
+      setRoadmapData(data);
+
+      // Show success message
+      const courseName = data.courseDetails?.courseTitle || 'Course';
+      alert(`🎉 "${courseName}" roadmap created successfully! You can now track your progress.`);
+
+      if (user && db) {
+        try {
+          await db.collection('users').doc(user.uid).collection('courses').add(data);
+          console.log('Course saved to database successfully');
+        } catch (dbError) {
+          console.log('Could not save to database (using fallback auth):', dbError);
+          // Continue without saving to DB when using fallback auth
+        }
+      }
+
+      // Redirect to roadmap view
+      setView('roadmap');
+    } catch (error) {
+      console.error('Error generating roadmap:', error);
+      alert('❌ Failed to generate roadmap. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-400 via-purple-300 to-cyan-200 flex items-center justify-center">
+        <Loader message="Loading..." />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-400 via-purple-300 to-cyan-200 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">AI Learning Roadmap Generator</h1>
+            <p className="text-gray-700">Transform your syllabus into an interactive roadmap</p>
+          </div>
+          
+          <div className="mb-6 flex justify-center space-x-4">
+            <button
+              onClick={() => setView('login')}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                view === 'login' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setView('register')}
+              className={`px-4 py-2 rounded-lg font-medium ${
+                view === 'register' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              Register
+            </button>
+          </div>
+
+          {view === 'login' ? (
+            <Login onLogin={handleLogin} />
+          ) : (
+            <Register onRegister={handleRegister} />
+          )}
         </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-400 via-purple-300 to-cyan-200">
+      <nav className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-white/20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold text-gray-900">AI Learning Roadmap Generator</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setView('courses')}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  view === 'courses' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-600 hover:bg-white/50'
+                }`}
+              >
+                My Courses
+              </button>
+              <button
+                onClick={() => setView('generate')}
+                className={`px-4 py-2 rounded-lg font-medium ${
+                  view === 'generate' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'text-gray-600 hover:bg-white/50'
+                }`}
+              >
+                Generate New
+              </button>
+              <span className="text-gray-700">{user.email}</span>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="py-8 px-4 sm:px-6 lg:px-8">
+        {view === 'courses' && <Courses user={user} />}
+        {view === 'generate' && (
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="mb-12">
+              <h1 className="text-5xl font-bold text-gray-900 mb-4">AI Learning Roadmap Generator</h1>
+              <h2 className="text-4xl font-bold text-gray-800 mb-6">From Syllabus to Complete Study Plan</h2>
+              <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                Upload your course syllabus PDF. Our AI will analyze it and generate a detailed learning roadmap with curated resources to guide your studies.
+              </p>
+            </div>
+            <SyllabusUploader onGenerate={handleGenerate} />
+            <div className="mt-8 text-center">
+              <p className="text-gray-600">Project By: <span className="text-blue-600 font-medium">Shubh Pratap Singh</span></p>
+            </div>
+          </div>
+        )}
+        {view === 'roadmap' && roadmapData && (
+          <div className="max-w-4xl mx-auto">
+            <RoadmapDisplay data={roadmapData} />
+          </div>
+        )}
       </main>
-      <footer className="text-center py-8 border-t border-gray-200/80 mt-16">
-        <div className="flex items-center justify-center space-x-2">
-          <p className="text-sm text-gray-500">Project By:</p>
-          <a href="https://github.com/ShubhPS" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors duration-200 hover:underline">Shubh Pratap Singh</a>
-        </div>
-      </footer>
     </div>
   );
 }

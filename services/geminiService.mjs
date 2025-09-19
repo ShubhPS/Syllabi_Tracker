@@ -80,7 +80,7 @@ export async function generateRoadmapFromSyllabus(syllabusFile) {
     Begin JSON output now:
   `;
 
-  const API_BASE = window.API_BASE || 'http://localhost:5179';
+  const API_BASE = window.API_BASE || 'http://localhost:5180';
   const resp = await fetch(`${API_BASE}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Syllabus to Roadmap Generator</title>
@@ -35,19 +35,30 @@
         ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
     <link rel="stylesheet" href="/index.css">
-    <!-- Optionally set backend base URL (defaults to http://localhost:5179) -->
+    
+    <!-- Backend base URL -->
     <script>window.API_BASE = 'http://localhost:5179';</script>
-    <!-- React UMD + Babel (use React 18 UMD for widest compatibility) -->
+
+    <!-- React UMD -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    
+    <!-- Firebase v8 (namespaced) libraries -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+
+    <!-- Babel for JSX transpilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Gemini service runs as an ES module and exposes a global function -->
+    
+    <!-- Services -->
     <script type="module" src="/services/geminiService.mjs"></script>
-  </head>
-  <body class="bg-gray-50">
+    <script src="/services/firebase.js"></script>
+</head>
+<body class="bg-gray-50">
     <div id="root"></div>
-    <!-- App code compiled by Babel in the browser -->
+    
+    <!-- Main application script -->
     <script type="text/babel" data-presets="react" src="/app.jsx"></script>
-  </body>
-  
+</body>
 </html>

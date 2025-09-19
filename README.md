@@ -1,35 +1,6 @@
-<<<<<<< HEAD
-# Syllabus to Roadmap Generator (Pure JS)
-
-## Run
-
-1. Backend
-   - Create `server/.env`:
-     - `PORT=5179`
-     - `GEMINI_API_KEY=YOUR_KEY`
-   - Start everything: `npm start`
-   - Health check: http://localhost:5179/api/health
-
-2. Frontend
-   - Opens at http://localhost:5173
-   - `index.html` points to backend via `window.API_BASE`.
-
-## Project Layout
-- `app.jsx` — frontend UI (React via CDN + Babel)
-- `services/geminiService.mjs` — calls backend `/api/generate`
-- `server/` — Express + SQLite + Gemini proxy
-- `index.html` — app shell and config
-
-## Notes
-- Do not put API keys in the frontend.
-- Keep `server/.env` out of version control.
-=======
 # 🗺️ Syllabi_Tracker
 
 Convert any PDF syllabus into an interactive, AI-generated learning roadmap with curated resources like links and YouTube videos — customized for your course and study style.
-
-[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://syllabi-tracker.vercel.app/)
-
 
 ---
 
@@ -47,65 +18,25 @@ Built using the powerful Gemini API, the app delivers precise, context-aware gui
 ## ✨ Features
 
 - **Auto‑generate Learning Roadmap** from syllabus PDF  
-- **Curated Resource Cards**: URLs, videos, and reading suggestions  
+- **Curated Resource Cards**: URLs, videos, and reading suggestions from Indian YouTube educators
 - **Compact UI** with module expansion, progress bars, and checklist states  
 - **Error handling** and user feedback for smoother experience  
 - **Responsive Design** optimized for desktop and mobile devices
 - **Progress Persistence** to save your learning journey
-
----
-
-## 🎬 Demo & Screenshots
-
-### 🌐 Live Demo
-Try the live application: **[Syllabi_Tracker Demo](https://syllabi-tracker.vercel.app/)**
-
-### 📸 How It Works
-
-1. **Upload Your Syllabus**
-   ![Upload Interface](services/Screenshot(313).png)
-   *Simply drag and drop or select your PDF syllabus file*
-
-2. **AI-Generated Roadmap**
-   ![Generated Roadmap](services/Screenshot(314).png)
-   *View your structured learning path with expandable modules*
-
-3. **Curated Resources**
-   ![Resource Cards](services/Screenshot(315).png)
-   *Access personalized study materials for each topic*
-
-4. **Progress Tracking**
-   ![Progress Tracking](services/Screenshot(317).png)
-   *Monitor your learning journey with interactive checkboxes*
-
-5. **Week wise study Plan**
-   ![Progress Tracking](services/Screenshot(316).png)
-   *Study plan drafted from syllabus*
+- **Firebase Authentication** for user accounts
+- **Real-time Database** storage with Firestore
 
 ---
 
 ## 🛠️ Technologies
 
-- **Frontend**: Next.js / React  
-- **Backend**: Node.js + Gemini API integration via OpenAI-compatible SDK
-- **State**: Local component state or optional backend persistence  
-- **PDF Processing**: Client‑side PDF upload parsing flow
-- **Styling**: Tailwind CSS / CSS Modules
-- **Deployment**: Vercel / Netlify
-
----
-
-## 🎯 Motivation
-
-This tool bridges the gap between static course outlines and actionable study plans. Instead of manually breaking down topics and finding resources, learners can get instantly guided with relevant content — making self‑study less overwhelming and more structured.
-
----
-
-## 📦 Prerequisites
-
-- **Node.js** (v16+) installed on your system  
-- **Gemini API key** from Google AI Studio
-- **Git** for cloning the repository
+- **Frontend**: React with CDN + Babel
+- **Backend**: Node.js + Express + Gemini API integration
+- **Database**: Firebase Firestore
+- **Authentication**: Firebase Auth
+- **PDF Processing**: Gemini's native PDF parsing
+- **Styling**: Tailwind CSS
+- **Deployment**: Vercel
 
 ---
 
@@ -123,169 +54,124 @@ npm install
 ```
 
 ### 3. Environment Setup
-Create a `.env.local` file in the root directory:
+Create a `server/.env` file:
 ```bash
-echo "GEMINI_API_KEY=your_actual_api_key_here" > .env.local
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
-### 4. Get Your Gemini API Key
-1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
-2. Create a new API key
-3. Copy and paste it into your `.env.local` file
+### 4. Firebase Setup
+1. Create a Firebase project at https://console.firebase.google.com
+2. Download the service account JSON file
+3. Place it in root directory (it's gitignored for security)
+4. Update the Firebase config in `services/firebase.js`
 
 ### 5. Start Development Server
 ```bash
-npm run dev
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the application.
+Open [http://localhost:5173](http://localhost:5173) to view the application.
 
 ---
 
-## 🚀 Deployment
+## 🚀 Deployment on Vercel
 
-This project can be easily deployed on various platforms:
+### Security Setup ⚠️
+**Critical:** Sensitive files are automatically excluded via `.gitignore`:
+- Firebase service account JSON files (`*-firebase-adminsdk-*.json`)
+- Environment variables (`.env*` files)
+- Node modules and build artifacts
 
-### Vercel (Recommended)
-1. Fork this repository
-2. Connect your GitHub account to [Vercel](https://vercel.com)
-3. Import the project and add your `GEMINI_API_KEY` in environment variables
-4. Deploy with one click!
->>>>>>> 1e3848ce5332daee01e722381a14de82b9e40d0f
+### Deployment Steps
+1. **Push to GitHub** (sensitive files will be ignored)
+2. **Connect to Vercel** and import your repository
+3. **Add Environment Variables** in Vercel dashboard:
+   ```
+   GEMINI_API_KEY=your_actual_gemini_key
+   ```
+4. **Deploy** - Vercel will handle the rest!
 
+### Vercel Configuration
+The included `vercel.json` configures:
+- Node.js serverless functions for the backend
+- Static file serving for the frontend
+- Proper API routing
 
-### Other Platforms
-The app works on any platform that supports Node.js applications.
+---
+
+## 📋 Security & Best Practices
+
+🔒 **Security Measures Implemented:**
+- ✅ Firebase service account keys gitignored
+- ✅ API keys use environment variables only
+- ✅ No sensitive data in frontend code
+- ✅ Proper CORS configuration
+- ✅ Vercel serverless function security
+
+**Files Safe to Commit:**
+- All application code (`app.jsx`, `index.html`, etc.)
+- Configuration files (`package.json`, `vercel.json`)
+- Public Firebase config (API keys are designed to be public)
+
+**Files Never Committed:**
+- `*-firebase-adminsdk-*.json` (service account keys)
+- `.env` files (API keys and secrets)
+- `node_modules/`
 
 ---
 
 ## 📝 Usage
 
-1. **Upload PDF**: Click the upload area or drag-drop your syllabus PDF
-2. **Wait for Processing**: The AI analyzes your document (usually takes 10-30 seconds)
-3. **Explore Roadmap**: Browse through generated modules and topics
-4. **Access Resources**: Click on topics to view curated learning materials
-5. **Track Progress**: Check off completed topics to monitor your advancement
+1. **Upload PDF**: Drag-drop your syllabus PDF or text file
+2. **AI Processing**: Wait for Gemini to analyze (10-30 seconds)
+3. **Explore Roadmap**: Browse generated modules and topics
+4. **Access Resources**: View curated YouTube videos from popular Indian educators like:
+   - CodeWithHarry
+   - Apna College
+   - Chai aur Code
+5. **Track Progress**: Check off completed topics and save progress
 
 ---
 
-## 🔧 API Reference
+## 🎯 Key Features
 
-### Gemini Integration
-The app uses Google's Gemini API for intelligent content analysis:
+### AI-Powered Resource Curation
+The app specifically finds educational content from trusted Indian YouTube channels and provides:
+- Video tutorials with descriptions
+- Reading materials and documentation
+- Structured learning paths
+- Estimated time requirements
 
-```javascript
-// Example API call structure
-const response = await gemini.generateContent({
-  model: "gemini-pro",
-  prompt: `Analyze this syllabus and create a learning roadmap...`,
-  maxTokens: 2000
-});
-```
+### Modern UI Design
+- Purple-to-cyan gradient backgrounds
+- Glass morphism effects
+- Interactive topic cards
+- Responsive mobile design
+- Progress visualization
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how you can help:
-
-### Ways to Contribute
-- 🐛 Report bugs and issues
-- 💡 Suggest new features
-- 📚 Improve documentation
-- 🔧 Submit pull requests
-- ⭐ Star the repository
-
-### Development Process
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes
-4. Test thoroughly
-5. Commit: `git commit -m 'Add amazing feature'`
-6. Push: `git push origin feature/amazing-feature`
-7. Open a Pull Request
-
-### Code Style
-- Follow existing code formatting
-- Add comments for complex logic
-- Include tests for new features
-- Update documentation as needed
-
----
-
-## 📋 TODO
-
-### 🚧 Upcoming Features
-- [ ] **Multi-language Support** (Spanish, French, etc.)
-- [ ] **Export Roadmap** as PDF or PNG
-- [ ] **Collaborative Learning** - Share roadmaps with classmates
-- [ ] **Integration with Learning Platforms** (Khan Academy, Coursera)
-- [ ] **Mobile App** for iOS and Android
-- [ ] **Advanced Analytics** with learning insights
-- [ ] **Offline Mode** for downloaded content
-- [ ] **Calendar Integration** for study scheduling
-
-### 🐛 Known Issues
-- [ ] Large PDF files (>10MB) may timeout
-- [ ] Complex mathematical formulas might not parse perfectly
-- [ ] Limited support for non-English syllabi
-
-### 🔧 Technical Improvements
-- [ ] Add unit and integration tests
-- [ ] Implement caching for faster repeated uploads
-- [ ] Database integration for user profiles
-- [ ] Real-time collaboration features
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**PDF Upload Fails**
-- Ensure PDF is under 10MB
-- Check if PDF is text-readable (not scanned image)
-- Try refreshing the page
-
-**API Errors**
-- Verify your `GEMINI_API_KEY` is correct
-- Check API quota limits
-- Ensure stable internet connection
-
-**Roadmap Not Generating**
-- Make sure your PDF contains a clear syllabus structure
-- Try with a different, simpler syllabus first
-- Check browser console for error messages
+3. Make your changes and test thoroughly
+4. Commit: `git commit -m 'Add amazing feature'`
+5. Push: `git push origin feature/amazing-feature`
+6. Submit a pull request
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ---
 
-## Acknowledgments
+## 📧 Contact
 
-- **Google AI** for the powerful Gemini API
-- **Next.js Team** for the amazing React framework
-- **Vercel** for seamless deployment platform
-- **Open Source Community** for inspiration and resources
-
----
-
-## 📧 Contact & Support
-
-- **Developer**: [Your Name](https://github.com/ShubhPS)
-- **Email**: shubhpsingh2616@example.com
-
----
-
-## ⭐ Show Your Support
-
-If this project helped you, please consider:
-- ⭐ Starring the repository
-- 🍴 Forking for your own modifications  
+- **Developer**: [ShubhPS](https://github.com/ShubhPS)
+- **Repository**: [Syllabi_Tracker](https://github.com/ShubhPS/Syllabi_Tracker)
 
 ---
 
