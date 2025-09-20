@@ -752,24 +752,54 @@ const Register = ({ onRegister }) => {
   );
 };
 
-const Courses = ({ user }) => {
+const Courses = ({ user, setView }) => {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     if (!user) return;
+    
+    console.log('Loading courses for user:', user.uid);
+    console.log('Database available:', Boolean(db));
+    
     setLoading(true);
-    const unsubscribe = db.collection('users').doc(user.uid).collection('courses')
-      .onSnapshot((snapshot) => {
-        const coursesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setCourses(coursesData);
-        setLoading(false);
-      });
+    setError(null);
 
-    return () => unsubscribe();
+    // Check if database is available
+    if (!db) {
+      console.log('Database not available, showing empty state');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const unsubscribe = db.collection('users').doc(user.uid).collection('courses')
+        .onSnapshot((snapshot) => {
+          console.log('Firestore snapshot received, docs:', snapshot.docs.length);
+          const coursesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setCourses(coursesData);
+          setLoading(false);
+        }, (error) => {
+          console.error('Firestore error:', error);
+          setError('Failed to load courses: ' + error.message);
+          setLoading(false);
+        });
+
+      return () => unsubscribe();
+    } catch (error) {
+      console.error('Error setting up Firestore listener:', error);
+      setError('Database connection failed: ' + error.message);
+      setLoading(false);
+    }
   }, [user]);
 
   const handleToggle = async (courseId, moduleIndex, topicIndex) => {
+    if (!db) {
+      console.warn('Database not available for toggle operation');
+      return;
+    }
+
     const course = courses.find(c => c.id === courseId);
     if (!course) return;
 
@@ -784,23 +814,79 @@ const Courses = ({ user }) => {
       topics: updatedTopics
     };
 
-    const courseRef = db.collection('users').doc(user.uid).collection('courses').doc(courseId);
-    await courseRef.update({ modules: updatedModules });
+    try {
+      const courseRef = db.collection('users').doc(user.uid).collection('courses').doc(courseId);
+      await courseRef.update({ modules: updatedModules });
+    } catch (error) {
+      console.error('Failed to update course:', error);
+    }
   };
 
   if (loading) {
-    return <p>Loading courses...</p>;
+    return (
+      <div className="w-full max-w-4xl mx-auto text-center">
+        <Loader message="Loading your courses..." />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full max-w-4xl mx-auto">
+        <ErrorDisplay message={error} />
+        <div className="text-center mt-4">
+          <p className="text-gray-600 mb-4">Database connection failed. You can still generate new roadmaps.</p>
+          <button
+            onClick={() => setView('generate')}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Generate New Roadmap
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-8">
-      <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Your Courses</h2>
+      <div className="text-center">
+        <h2 className="text-3xl font-bold text-gray-800 mb-6">Your Courses</h2>
+        <div className="flex justify-center space-x-4 mb-8">
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 font-medium"
+          >
+            Refresh
+          </button>
+          <button
+            onClick={() => setView('generate')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+          >
+            Generate New Roadmap
+          </button>
+        </div>
+      </div>
+      
       {courses.length === 0 ? (
-        <p className="text-center text-gray-500">You haven't generated any roadmaps yet.</p>
+        <div className="text-center">
+          <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-200">
+            <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Courses Yet</h3>
+            <p className="text-gray-600 mb-6">You haven't generated any roadmaps yet. Start by uploading a syllabus!</p>
+            <button
+              onClick={() => setView('generate')}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+            >
+              Create Your First Roadmap
+            </button>
+          </div>
+        </div>
       ) : (
         courses.map(course => (
           <div key={course.id} className="bg-white p-8 rounded-2xl shadow-xl border border-gray-200/50">
-            <h3 className="text-2xl font-bold text-gray-900 tracking-tight">{course.courseDetails.courseTitle}</h3>
+            <h3 className="text-2xl font-bold text-gray-900 tracking-tight mb-4">{course.courseDetails.courseTitle}</h3>
             <RoadmapDisplay data={course} onToggle={(mi, ti) => handleToggle(course.id, mi, ti)} />
           </div>
         ))
@@ -819,11 +905,21 @@ function App() {
     const unsubscribe = authService.onAuthStateChanged((user) => {
       setUser(user);
       setLoading(false);
+      
+      // Test API connection when user logs in
+      if (user && window.API_BASE) {
+        fetch(`${window.API_BASE}/api/health`)
+          .then(res => res.json())
+          .then(data => console.log('API Health Check:', data))
+          .catch(err => console.error('API Health Check Failed:', err));
+      }
     });
     return () => unsubscribe();
   }, []);
 
   const handleLogin = (user) => {
+    console.log('Login successful, user:', user);
+    console.log('API_BASE:', window.API_BASE);
     setUser(user);
     setView('courses');
   };
@@ -1032,7 +1128,7 @@ function App() {
       </nav>
 
       <main className="py-8 px-4 sm:px-6 lg:px-8">
-        {view === 'courses' && <Courses user={user} />}
+        {view === 'courses' && <Courses user={user} setView={setView} />}
         {view === 'generate' && (
           <div className="max-w-4xl mx-auto text-center">
             <div className="mb-12">
