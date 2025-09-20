@@ -427,11 +427,17 @@ function ModuleNode({ module, index, onToggle, accentColor }) {
               >
                 <div className="flex items-start space-x-4">
                   {/* Checkbox */}
-                  <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 ${
-                    topic.completed 
-                      ? 'bg-green-500 border-green-500' 
-                      : 'border-gray-300 hover:border-gray-400'
-                  }`}>
+                  <div 
+                    className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mt-1 cursor-pointer ${
+                      topic.completed 
+                        ? 'bg-green-500 border-green-500' 
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onToggle && onToggle(index, topicIndex);
+                    }}
+                  >
                     {topic.completed && (
                       <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
