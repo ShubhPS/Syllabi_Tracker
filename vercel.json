@@ -38,9 +38,5 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "env": {
-    "ENVIRONMENT": "production",
-    "GEMINI_API_KEY": "@gemini_api_key"
-  }
+  ]
 }
