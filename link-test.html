@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-8 bg-gray-100">
+    <h1 class="text-2xl font-bold mb-6">Link Functionality Test</h1>
+    
+    <div class="space-y-4">
+        <!-- Test link with valid URL -->
+        <div class="p-4 bg-white rounded-lg border">
+            <h3 class="font-semibold mb-2">Valid URL Test</h3>
+            <a 
+                href="https://www.youtube.com/watch?v=dQw4w9WgXcQ" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+            >
+                Open YouTube Link
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+            </a>
+        </div>
+
+        <!-- Test search functionality -->
+        <div class="p-4 bg-white rounded-lg border">
+            <h3 class="font-semibold mb-2">Search Functionality Test</h3>
+            <button
+                onclick="openSearchLink()"
+                class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+            >
+                Search YouTube for "JavaScript Tutorial"
+                <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+            </button>
+        </div>
+
+        <!-- Test invalid URL fallback -->
+        <div class="p-4 bg-white rounded-lg border">
+            <h3 class="font-semibold mb-2">Invalid URL Fallback Test</h3>
+            <div class="text-sm text-gray-500">
+                <p class="italic">Search for: "React Hooks Tutorial"</p>
+                <button
+                    onclick="openFallbackSearch()"
+                    class="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline mt-1"
+                >
+                    Search YouTube
+                    <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function openSearchLink() {
+            const searchQuery = encodeURIComponent("JavaScript Tutorial CodeWithHarry");
+            const searchUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+            window.open(searchUrl, '_blank');
+        }
+
+        function openFallbackSearch() {
+            const searchQuery = encodeURIComponent("React Hooks Tutorial");
+            const searchUrl = `https://www.youtube.com/results?search_query=${searchQuery}`;
+            window.open(searchUrl, '_blank');
+        }
+
+        // Test console logs
+        console.log('Link test page loaded');
+        console.log('Testing link functionality...');
+    </script>
+</body>
+</html>

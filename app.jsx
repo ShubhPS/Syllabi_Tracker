@@ -142,6 +142,8 @@ function SyllabusUploader({ onGenerate, isLoading }) {
                    2. Reading materials, documentation, and tutorial links
                    3. Practice resources and exercises when applicable
                    
+                   IMPORTANT: For resource URLs, provide REAL working URLs when possible. If you don't have a specific URL, use a descriptive title that can be used for searching.
+                   
                    Return the response in this exact JSON format:
                    {
                      "courseDetails": {
@@ -164,17 +166,17 @@ function SyllabusUploader({ onGenerate, isLoading }) {
                              "resources": [
                                {
                                  "type": "video",
-                                 "title": "Video Title",
+                                 "title": "Descriptive Video Title for Search",
                                  "description": "Comprehensive video covering the basics and fundamentals",
-                                 "url": "https://youtube.com/watch?v=...",
+                                 "url": "https://youtube.com/watch?v=real_video_id_if_known",
                                  "channel": "Channel Name (e.g., CodeWithHarry, Apna College)",
                                  "icon": "youtube"
                                },
                                {
                                  "type": "reading",
-                                 "title": "Reading Material Title",
+                                 "title": "Reading Material Title for Search",
                                  "description": "Detailed article explaining fundamental concepts",
-                                 "url": "https://example.com/article",
+                                 "url": "https://real-website.com/actual-article-if-known",
                                  "source": "Source website",
                                  "icon": "link"
                                }
@@ -467,46 +469,79 @@ function ModuleNode({ module, index, onToggle, accentColor }) {
                       <div>
                         <h5 className="font-medium text-gray-800 mb-3">Curated Resources</h5>
                         <div className="space-y-3">
-                          {topic.resources.map((resource, resourceIndex) => (
-                            <a 
-                              key={resourceIndex} 
-                              href={resource.url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
-                            >
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                                resource.type === 'video' || resource.icon === 'youtube'
-                                  ? 'bg-red-100' 
-                                  : 'bg-blue-100'
-                              }`}>
-                                {resource.type === 'video' || resource.icon === 'youtube' ? (
-                                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                                  </svg>
-                                ) : (
-                                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-                                  </svg>
-                                )}
+                          {topic.resources.map((resource, resourceIndex) => {
+                            // Validate URL before rendering
+                            const isValidUrl = resource.url && (resource.url.startsWith('http://') || resource.url.startsWith('https://'));
+                            
+                            return (
+                              <div
+                                key={resourceIndex}
+                                className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all"
+                              >
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                                  resource.type === 'video' || resource.icon === 'youtube'
+                                    ? 'bg-red-100' 
+                                    : 'bg-blue-100'
+                                }`}>
+                                  {resource.type === 'video' || resource.icon === 'youtube' ? (
+                                    <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                                    </svg>
+                                  ) : (
+                                    <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="flex-1">
+                                  <h6 className="font-medium text-gray-900 mb-1">
+                                    {resource.title}
+                                  </h6>
+                                  <p className="text-sm text-gray-600 mb-2">{resource.description}</p>
+                                  <p className="text-xs text-gray-500 mb-2">
+                                    {resource.channel || resource.source || 'Educational Resource'}
+                                  </p>
+                                  {isValidUrl ? (
+                                    <a
+                                      href={resource.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('Opening URL:', resource.url);
+                                      }}
+                                      className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline"
+                                    >
+                                      Open Link
+                                      <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                      </svg>
+                                    </a>
+                                  ) : (
+                                    <div className="text-sm text-gray-500">
+                                      <p className="italic">Search for: "{resource.title}"</p>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const searchQuery = encodeURIComponent(resource.title + ' ' + (resource.channel || ''));
+                                          const searchUrl = resource.type === 'video' || resource.icon === 'youtube' 
+                                            ? `https://www.youtube.com/results?search_query=${searchQuery}`
+                                            : `https://www.google.com/search?q=${searchQuery}`;
+                                          window.open(searchUrl, '_blank');
+                                        }}
+                                        className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium hover:underline mt-1"
+                                      >
+                                        Search {resource.type === 'video' || resource.icon === 'youtube' ? 'YouTube' : 'Google'}
+                                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div className="flex-1">
-                                <h6 className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
-                                  {resource.title}
-                                </h6>
-                                <p className="text-sm text-gray-600 mb-1">{resource.description}</p>
-                                <p className="text-xs text-gray-500">
-                                  {resource.channel || resource.source || 'Educational Resource'}
-                                </p>
-                              </div>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                </svg>
-                              </div>
-                            </a>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -962,6 +997,8 @@ function App() {
                      2. Reading materials and documentation links
                      3. Practice resources when applicable
                      
+                     IMPORTANT: For resource URLs, provide REAL working URLs when possible. If you don't have a specific URL, use a descriptive title that can be used for searching.
+                     
                      Return the response in this exact JSON format:
                      {
                        "courseDetails": {
@@ -984,17 +1021,17 @@ function App() {
                                "resources": [
                                  {
                                    "type": "video",
-                                   "title": "Video Title",
+                                   "title": "Descriptive Video Title for Search",
                                    "description": "Video description",
-                                   "url": "https://youtube.com/watch?v=...",
+                                   "url": "https://youtube.com/watch?v=real_video_id_if_known",
                                    "channel": "Channel Name (e.g., CodeWithHarry, Apna College)",
                                    "icon": "youtube"
                                  },
                                  {
                                    "type": "reading",
-                                   "title": "Reading Material Title",
+                                   "title": "Reading Material Title for Search",
                                    "description": "Article or documentation description",
-                                   "url": "https://example.com/article",
+                                   "url": "https://real-website.com/actual-article-if-known",
                                    "source": "Source website",
                                    "icon": "link"
                                  }
