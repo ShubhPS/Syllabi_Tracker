@@ -11,23 +11,39 @@ const firebaseConfig = {
 
 // Initialize Firebase
 try {
-  firebase.initializeApp(firebaseConfig);
-  console.log('Firebase initialized successfully');
+  console.log('Initializing Firebase...');
+  if (typeof firebase === 'undefined') {
+    console.error('Firebase SDK not loaded!');
+  } else {
+    firebase.initializeApp(firebaseConfig);
+    console.log('Firebase initialized successfully');
+    
+    // Make auth and firestore services available globally
+    window.auth = firebase.auth();
+    window.db = firebase.firestore();
+    
+    console.log('Firebase services available:', {
+      auth: Boolean(window.auth),
+      db: Boolean(window.db)
+    });
+  }
 } catch (error) {
   console.error('Firebase initialization error:', error);
+  
+  // Create fallback objects to prevent crashes
+  window.auth = null;
+  window.db = null;
 }
 
-// Make auth and firestore services available globally
-window.auth = firebase.auth();
-window.db = firebase.firestore();
-
 // Add better error handling for auth state changes
-window.auth.onAuthStateChanged((user) => {
-  if (user) {
-    console.log('User signed in:', user.email);
-  } else {
-    console.log('User signed out');
-  }
-}, (error) => {
-  console.error('Auth state change error:', error);
-});
+if (window.auth) {
+  window.auth.onAuthStateChanged((user) => {
+    if (user) {
+      console.log('User signed in:', user.email);
+    } else {
+      console.log('User signed out');
+    }
+  }, (error) => {
+    console.error('Auth state change error:', error);
+  });
+}

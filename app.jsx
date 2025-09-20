@@ -1156,6 +1156,61 @@ function App() {
 
 const container = document.getElementById('root');
 const root = ReactDOM.createRoot(container);
-root.render(React.createElement(React.StrictMode, null, React.createElement(App)));
+
+// Add error boundary
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('React Error Boundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {
+        style: { padding: '20px', backgroundColor: '#fee', border: '1px solid #fcc' }
+      }, [
+        React.createElement('h2', { key: 'title' }, 'Something went wrong'),
+        React.createElement('p', { key: 'message' }, this.state.error?.message || 'Unknown error'),
+        React.createElement('button', {
+          key: 'reload',
+          onClick: () => window.location.reload(),
+          style: { padding: '10px', marginTop: '10px' }
+        }, 'Reload Page')
+      ]);
+    }
+
+    return this.props.children;
+  }
+}
+
+try {
+  console.log('Attempting to render React app...');
+  root.render(
+    React.createElement(React.StrictMode, null, 
+      React.createElement(ErrorBoundary, null,
+        React.createElement(App)
+      )
+    )
+  );
+  console.log('React app rendered successfully');
+} catch (error) {
+  console.error('Failed to render React app:', error);
+  // Fallback rendering
+  document.getElementById('root').innerHTML = `
+    <div style="padding: 20px; background-color: #fee; border: 1px solid #fcc; margin: 20px;">
+      <h2>App Failed to Load</h2>
+      <p>Error: ${error.message}</p>
+      <button onclick="window.location.reload()">Reload Page</button>
+    </div>
+  `;
+}
 
 
