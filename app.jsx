@@ -142,10 +142,6 @@ function SyllabusUploader({ onGenerate, isLoading }) {
                    2. Reading materials, documentation, and tutorial links
                    3. Practice resources and exercises when applicable
                    
-                   CRITICAL: For YouTube videos, provide REAL working URLs with actual video IDs. 
-                   Do NOT use placeholder URLs like "youtube.com/watch?v=..." 
-                   Either provide real educational video URLs or omit the resource if no specific video is known.
-                   
                    Return the response in this exact JSON format:
                    {
                      "courseDetails": {
@@ -332,6 +328,7 @@ function ResourceCard({ resource }) {
         href={resource.url}
         target="_blank"
         rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()}
         className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium"
       >
         Access Resource
@@ -470,43 +467,15 @@ function ModuleNode({ module, index, onToggle, accentColor }) {
                       <div>
                         <h5 className="font-medium text-gray-800 mb-3">Curated Resources</h5>
                         <div className="space-y-3">
-                          {topic.resources.map((resource, resourceIndex) => {
-                            // Fix common URL issues
-                            let cleanUrl = resource.url || '';
-                            
-                            // Fix YouTube URLs with placeholder IDs
-                            if (cleanUrl.includes('youtube.com/watch?v=...') || cleanUrl.includes('youtu.be/...')) {
-                              console.warn('Found placeholder YouTube URL, skipping:', cleanUrl);
-                              return null; // Skip invalid YouTube URLs
-                            }
-                            
-                            // Ensure URL has protocol
-                            if (cleanUrl && !cleanUrl.startsWith('http://') && !cleanUrl.startsWith('https://')) {
-                              cleanUrl = 'https://' + cleanUrl;
-                            }
-                            
-                            // Skip if no valid URL
-                            if (!cleanUrl || cleanUrl === 'https://') {
-                              console.warn('Invalid URL found, skipping resource:', resource.title);
-                              return null;
-                            }
-                            
-                            return (
-                              <a 
-                                key={resourceIndex} 
-                                href={cleanUrl} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
-                                onClick={(e) => {
-                                  // Additional validation on click
-                                  if (cleanUrl.includes('...') || !cleanUrl.startsWith('http')) {
-                                    e.preventDefault();
-                                    alert('This link appears to be a placeholder. Please search for the actual resource online.');
-                                    return false;
-                                  }
-                                }}
-                              >
+                          {topic.resources.map((resource, resourceIndex) => (
+                            <a 
+                              key={resourceIndex} 
+                              href={resource.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-start space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group"
+                            >
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
                                 resource.type === 'video' || resource.icon === 'youtube'
                                   ? 'bg-red-100' 
@@ -537,8 +506,7 @@ function ModuleNode({ module, index, onToggle, accentColor }) {
                                 </svg>
                               </div>
                             </a>
-                            );
-                          }).filter(Boolean)} {/* Remove null entries */}
+                          ))}
                         </div>
                       </div>
                     )}
@@ -993,10 +961,6 @@ function App() {
                      1. Relevant YouTube video tutorials (prefer Indian educational channels like CodeWithHarry, Apna College, etc.)
                      2. Reading materials and documentation links
                      3. Practice resources when applicable
-                     
-                     CRITICAL: For YouTube videos, provide REAL working URLs with actual video IDs. 
-                     Do NOT use placeholder URLs like "youtube.com/watch?v=..." 
-                     Either provide real educational video URLs or omit the resource if no specific video is known.
                      
                      Return the response in this exact JSON format:
                      {
