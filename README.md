@@ -13,6 +13,8 @@ Convert any PDF syllabus into an interactive, AI-generated learning roadmap with
 
 Built using the powerful Gemini API, the app delivers precise, context-aware guidance for efficient learning plans.
 
+TEST IT HERE : https://syllabi-tracker1.vercel.app
+
 ---
 
 ## ✨ Features
